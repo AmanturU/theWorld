@@ -390,3 +390,8 @@ select {
    background-color: #4243a8;
    color: #fff;
 }
+
+.btn-content button:disabled {
+   opacity: 0.6;
+   background-color: #4243a8;
+}

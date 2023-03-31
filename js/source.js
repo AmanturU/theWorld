@@ -1,16 +1,19 @@
 
 const $container = document.querySelector('.container')
-const $btnPrev = document.querySelector('.prev')
-const $btnNext = document.querySelector('.next')
-const $page = document.querySelector(".counter")
 const $continentSelect = document.querySelector("#continent-select")
 
+const $prevPageBtn = document.querySelector('.prev_page')
+const $nextPageBtn = document.querySelector('.next_page')
+const $currentPage = document.querySelector(".counter_page")
 
-const LIMIT = 10
+
+const LIMIT = 24
 const TOTAL_COUNTRYS = 250
 const TOTAL_PAGES = Math.ceil(TOTAL_COUNTRYS / LIMIT)
-let pageCounter = 1
-let offsetCounter = 0
+let offset = 0
+let page = 1
+
+let result = []
 
 let api = {
    main: 'https://restcountries.com/v3.1/all',
@@ -19,36 +22,61 @@ let api = {
 }
 
 
-window.addEventListener('load', () => {
-   setData(`${api.main}?offset=${offsetCounter}&limit=${LIMIT}`).then(data => {
-      let temp = data.map((country) => TitleCountryCard(country)).join('')
+window.addEventListener('DOMContentLoaded', () => {
+   setData(api.main, offset)
 
-      $container.innerHTML = temp
-   })
-
+   // Фильтрация стран
    $continentSelect.addEventListener("change", (e) => {
       const selectedContinent = $continentSelect.value
-      setData(`${api.region}${selectedContinent}?offset=${offsetCounter}&limit=${LIMIT}`).then((data) => {
+      setData(`${api.region}${selectedContinent}`), offset.then((data) => {
          let temp = data.map((country) => TitleCountryCard(country)).join('')
-         $container.innerHTML = temp
       })
-
    })
 })
 
+async function setData(url, offset) {
+   try {
+      if (!result.length) {
+         const response = await fetch(url)
+         result = await response.json()
+      }
+
+      $currentPage.innerHTML = page
+
+      const slicedCountries = result.slice(offset, offset + LIMIT)
+      const template = slicedCountries.reduce((acc, country) => acc + TitleCountryCard(country), '')
+
+      $container.innerHTML = template
+
+      // Проверка на первую page и неактивная кнопка назад 
+      $prevPageBtn.disabled = page === 1
+
+      // Проверка на последнию page и неактивная кнопка вперед 
+      $nextPageBtn.disabled = offset + LIMIT >= result.length
+
+   } catch (e) {
+      console.error(e)
+   }
+}
+
+// Получение всех стран
+const setDataa = (url) => fetch(url).then((res) => {
+   const result = res.json()
+   $currentPage.innerHTML = page
+
+   return result
+})
 
 
+// Функция для получения инфы о стране
 const setInfoCountry = (cca3) => {
-   setData(`https://restcountries.com/v3.1/alpha/${cca3}`)
+   setDataa(`https://restcountries.com/v3.1/alpha/${cca3}`)
       .then(data => {
          $container.innerHTML = CardCountry(data)
       })
 }
 
-const setData = (url) => fetch(url).then((res) => res.json())
-
-
-// Сами карточки
+// Сами карточки (превью)
 function TitleCountryCard(country) {
    return `
    <div class="card" onClick="setInfoCountry('${country.cca3}')">
@@ -60,6 +88,7 @@ function TitleCountryCard(country) {
    </div>`
 }
 
+// Подробная инфа о стране
 function CardCountry(info) {
    console.log(info)
    console.log(info)
@@ -77,7 +106,6 @@ function CardCountry(info) {
       callingCodes,
       name
    } = info[0]
-   console.log(name.nativeName)
    const languages = Object.keys(info[0].languages).map(key => info[0].languages[key])
    const nativeNamee = Object.keys(name.nativeName).map(key => name.nativeName[key])
    const currency = Object.keys(info[0].currencies).map(key => info[0].currencies[key])
@@ -120,67 +148,82 @@ function reloadWindowFunc() {
 
 
 /* --------------------------===>Pagination<===-------------------------- */
-// Pagination 
-window.addEventListener("load", () => {
-   $page.innerHTML = pageCounter
-   $btnPrev.setAttribute("disabled", true)
-});
-
-$btnNext.addEventListener("click", (e) => {
-   e.preventDefault()
-   $btnPrev.removeAttribute("disabled")
-   if (pageCounter >= 1 && pageCounter <= TOTAL_PAGES) {
-      if (pageCounter === TOTAL_PAGES) {
-         $btnNext.setAttribute("disabled", true)
-         setData(
-            `${api.main}?offset=${(offsetCounter += LIMIT)}&limit=${LIMIT}`
-         ).then((data) => {
-            pageCounter++
-            $page.innerHTML = pageCounter
-            let temp = data.map((country) => TitleCountryCard(country)).join('')
-
-            $container.innerHTML = temp
-         })
-      } else {
-         setData(`${api.main}?offset=${(offsetCounter += LIMIT)}&limit=${LIMIT} `
-         ).then((data) => {
-            pageCounter++
-            $page.innerHTML = pageCounter
-            let temp = data.map((country) => TitleCountryCard(country)).join('')
-
-            $container.innerHTML = temp
-         })
-      }
-   }
+$nextPageBtn.addEventListener('click', () => {
+   page++
+   setData(api.main, offset += LIMIT)
 })
 
-$btnPrev.addEventListener("click", (e) => {
-   e.preventDefault()
-   if (pageCounter >= 1) {
-      pageCounter--;
-
-      if (pageCounter === 1) {
-         $btnPrev.setAttribute("disabled", true)
-         offsetCounter = 0;
-         setData(`${api.main}?offset=${offsetCounter}&limit=${LIMIT}`).then(
-            (data) => {
-               $page.innerHTML = pageCounter
-               let temp = data.map((country) => TitleCountryCard(country)).join('');
-
-               $container.innerHTML = temp
-            }
-         );
-      } else {
-         setData(`${api.main}?offset=${offsetCounter -= LIMIT}&limit=${LIMIT}`).then(
-            (data) => {
-               $btnNext.removeAttribute('disabled')
-               $page.innerHTML = pageCounter
-               let temp = data.map((country) => TitleCountryCard(country)).join('')
-
-               $container.innerHTML = temp
-            }
-         );
-      }
-   }
+$prevPageBtn.addEventListener('click', () => {
+   page--
+   setData(api.main, offset -= LIMIT)
 })
+
+
+
+
+
+
+// Pagination
+// window.addEventListener("load", () => {
+//    $currentPage.innerHTML = pageCounter
+//    $prevPageBtn.setAttribute("disabled", true)
+// });
+
+// $nextPageBtn.addEventListener("click", (e) => {
+//    e.preventDefault()
+//    $prevPageBtn.removeAttribute("disabled")
+//    if (pageCounter >= 1 && pageCounter <= TOTAL_PAGES) {
+//       if (pageCounter === TOTAL_PAGES) {
+//          $nextPageBtn.setAttribute("disabled", true)
+//          setData(
+//             `${api.main}?offset=${(offset += LIMIT)}&limit=${LIMIT}`
+//          ).then((data) => {
+//             pageCounter++
+//             $currentPage.innerHTML = pageCounter
+//             let temp = data.map((country) => TitleCountryCard(country)).join('')
+
+//             $container.innerHTML = temp
+//          })
+//       } else {
+//          setData(`${api.main}?offset=${(offset += LIMIT)}&limit=${LIMIT} `
+//          ).then((data) => {
+//             pageCounter++
+//             $currentPage.innerHTML = pageCounter
+//             let temp = data.map((country) => TitleCountryCard(country)).join('')
+
+//             $container.innerHTML = temp
+//          })
+//       }
+//    }
+// })
+
+// $prevPageBtn.addEventListener("click", (e) => {
+//    e.preventDefault()
+//    if (pageCounter >= 1) {
+//       pageCounter--;
+
+//       if (pageCounter === 1) {
+//          $prevPageBtn.setAttribute("disabled", true)
+//          offset = 0;
+//          setData(`${api.main}?offset=${offset}&limit=${LIMIT}`).then(
+//             (data) => {
+//                $currentPage.innerHTML = pageCounter
+//                let temp = data.map((country) => TitleCountryCard(country)).join('');
+
+//                $container.innerHTML = temp
+//             }
+//          );
+//       } else {
+//          setData(`${api.main}?offset=${offset -= LIMIT}&limit=${LIMIT}`).then(
+//             (data) => {
+//                $nextPageBtn.removeAttribute('disabled')
+//                $currentPage.innerHTML = pageCounter
+//                let temp = data.map((country) => TitleCountryCard(country)).join('')
+
+//                $container.innerHTML = temp
+//             }
+//          );
+//       }
+//    }
+// })
 
